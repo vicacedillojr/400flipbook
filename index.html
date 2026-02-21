@@ -1,0 +1,921 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"/>
+  <meta name="theme-color" content="#0d1b2a"/>
+  <meta name="mobile-web-app-capable" content="yes"/>
+  <meta name="apple-mobile-web-app-capable" content="yes"/>
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
+  <meta name="apple-mobile-web-app-title" content="You Are Not Half"/>
+  <meta name="description" content="400 Affirmations for Filipino Teens Growing Up Between Worlds by Lolo Berto"/>
+
+  <link rel="manifest" href="manifest.json"/>
+  <link rel="apple-touch-icon" href="icons/apple-touch-icon.png"/>
+  <link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192x192.png"/>
+
+  <!-- iOS splash screens -->
+  <link rel="apple-touch-startup-image" href="icons/splash.png"/>
+
+  <title>You Are Not Half</title>
+
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      background: #0d1b2a;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: space-between;
+      height: 100dvh;
+      font-family: Georgia, serif;
+      color: #eee;
+      overflow: hidden;
+      touch-action: none;
+      user-select: none;
+      -webkit-user-select: none;
+    }
+
+    /* ── Top bar ── */
+    #topbar {
+      width: 100%;
+      padding: 10px 16px;
+      padding-top: calc(10px + env(safe-area-inset-top));
+      text-align: center;
+      font-size: 0.78rem;
+      color: #f4d06f;
+      letter-spacing: 1px;
+      background: rgba(0,0,0,0.6);
+      flex-shrink: 0;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    /* ── Page viewer ── */
+    #viewer {
+      flex: 1;
+      width: 100%;
+      position: relative;
+      overflow: hidden;
+    }
+
+    #strip {
+      display: flex;
+      flex-direction: row;
+      height: 100%;
+      transition: transform 0.32s cubic-bezier(0.4, 0, 0.2, 1);
+      will-change: transform;
+    }
+
+    /* Disable transition during drag */
+    #strip.dragging {
+      transition: none;
+    }
+
+    .page {
+      flex-shrink: 0;
+      width: 100vw;
+      height: 100%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: #111;
+    }
+
+    .page img {
+      max-width: 100%;
+      max-height: 100%;
+      object-fit: contain;
+      display: block;
+      pointer-events: none;
+      -webkit-user-drag: none;
+    }
+
+    /* ── Progress bar (Philippine flag colors) ── */
+    #progress-bar {
+      position: absolute;
+      bottom: 0;
+      left: 0;
+      height: 3px;
+      background: linear-gradient(to right, #0038a8, #ce1126, #f4d06f);
+      transition: width 0.3s;
+      z-index: 10;
+    }
+
+    /* ── Swipe hint ── */
+    #swipe-hint {
+      position: absolute;
+      bottom: 24px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: rgba(0,0,0,0.7);
+      color: #fff;
+      padding: 8px 20px;
+      border-radius: 20px;
+      font-size: 0.78rem;
+      pointer-events: none;
+      opacity: 1;
+      transition: opacity 0.6s;
+      white-space: nowrap;
+      z-index: 20;
+    }
+
+    /* ── Install banner ── */
+    #install-banner {
+      display: none;
+      position: absolute;
+      top: 10px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: #0038a8;
+      color: #fff;
+      padding: 10px 20px;
+      border-radius: 12px;
+      font-size: 0.82rem;
+      text-align: center;
+      z-index: 30;
+      box-shadow: 0 4px 20px rgba(0,0,0,0.5);
+      width: calc(100% - 40px);
+      max-width: 380px;
+      gap: 10px;
+      flex-direction: column;
+    }
+
+    #install-banner.visible { display: flex; }
+
+    #install-banner p { line-height: 1.4; }
+
+    #install-banner .btn-row {
+      display: flex;
+      gap: 10px;
+      justify-content: center;
+    }
+
+    .install-btn {
+      background: #f4d06f;
+      color: #0d1b2a;
+      border: none;
+      padding: 8px 20px;
+      border-radius: 6px;
+      font-weight: bold;
+      font-size: 0.85rem;
+      cursor: pointer;
+    }
+
+    .dismiss-btn {
+      background: transparent;
+      color: #aaa;
+      border: 1px solid #aaa;
+      padding: 8px 16px;
+      border-radius: 6px;
+      font-size: 0.85rem;
+      cursor: pointer;
+    }
+
+    /* ── Offline indicator ── */
+    #offline-badge {
+      display: none;
+      position: absolute;
+      top: 8px;
+      right: 12px;
+      background: #ce1126;
+      color: #fff;
+      font-size: 0.65rem;
+      padding: 3px 8px;
+      border-radius: 10px;
+      z-index: 40;
+    }
+
+    /* ── Cache progress bar ── */
+    #cache-bar-wrap {
+      display: none;
+      position: absolute;
+      top: 0; left: 0; right: 0;
+      height: 2px;
+      background: rgba(255,255,255,0.1);
+      z-index: 50;
+    }
+
+    #cache-bar {
+      height: 100%;
+      background: #f4d06f;
+      width: 0%;
+      transition: width 0.4s;
+    }
+
+    /* ── Bottom controls ── */
+    #controls {
+      width: 100%;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 10px 16px;
+      padding-bottom: calc(10px + env(safe-area-inset-bottom));
+      background: rgba(0,0,0,0.6);
+      flex-shrink: 0;
+      gap: 8px;
+    }
+
+    .nav-btn {
+      background: #0038a8;
+      color: #fff;
+      border: none;
+      padding: 10px 18px;
+      font-size: 1rem;
+      cursor: pointer;
+      border-radius: 8px;
+      font-weight: bold;
+      transition: background 0.15s, opacity 0.2s;
+      flex-shrink: 0;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    .nav-btn:active { background: #0050e0; transform: scale(0.96); }
+    .nav-btn:disabled { opacity: 0.25; cursor: default; }
+
+    #page-info {
+      font-size: 0.78rem;
+      color: #ccc;
+      text-align: center;
+      flex: 1;
+      line-height: 1.5;
+    }
+
+    #pct {
+      display: block;
+      font-size: 0.65rem;
+      color: #666;
+      margin-top: 1px;
+    }
+  </style>
+</head>
+<body>
+
+  <div id="topbar">YOU ARE NOT HALF &nbsp;&#183;&nbsp; LOLO BERTO</div>
+
+  <div id="viewer">
+    <!-- Cache progress (thin gold bar at very top) -->
+    <div id="cache-bar-wrap"><div id="cache-bar"></div></div>
+
+    <!-- Install prompt -->
+    <div id="install-banner">
+      <p>&#128218; Add <strong>You Are Not Half</strong> to your home screen for offline reading!</p>
+      <div class="btn-row">
+        <button class="install-btn" id="install-btn">Install App</button>
+        <button class="dismiss-btn" id="dismiss-btn">Not now</button>
+      </div>
+    </div>
+
+    <!-- Offline badge -->
+    <div id="offline-badge">&#9889; Offline</div>
+
+    <div id="strip">
+      <div class="page"><img src="pages/page-001.jpg" alt="Page 1" loading="lazy"></div>
+      <div class="page"><img src="pages/page-002.jpg" alt="Page 2" loading="lazy"></div>
+      <div class="page"><img src="pages/page-003.jpg" alt="Page 3" loading="lazy"></div>
+      <div class="page"><img src="pages/page-004.jpg" alt="Page 4" loading="lazy"></div>
+      <div class="page"><img src="pages/page-005.jpg" alt="Page 5" loading="lazy"></div>
+      <div class="page"><img src="pages/page-006.jpg" alt="Page 6" loading="lazy"></div>
+      <div class="page"><img src="pages/page-007.jpg" alt="Page 7" loading="lazy"></div>
+      <div class="page"><img src="pages/page-008.jpg" alt="Page 8" loading="lazy"></div>
+      <div class="page"><img src="pages/page-009.jpg" alt="Page 9" loading="lazy"></div>
+      <div class="page"><img src="pages/page-010.jpg" alt="Page 10" loading="lazy"></div>
+      <div class="page"><img src="pages/page-011.jpg" alt="Page 11" loading="lazy"></div>
+      <div class="page"><img src="pages/page-012.jpg" alt="Page 12" loading="lazy"></div>
+      <div class="page"><img src="pages/page-013.jpg" alt="Page 13" loading="lazy"></div>
+      <div class="page"><img src="pages/page-014.jpg" alt="Page 14" loading="lazy"></div>
+      <div class="page"><img src="pages/page-015.jpg" alt="Page 15" loading="lazy"></div>
+      <div class="page"><img src="pages/page-016.jpg" alt="Page 16" loading="lazy"></div>
+      <div class="page"><img src="pages/page-017.jpg" alt="Page 17" loading="lazy"></div>
+      <div class="page"><img src="pages/page-018.jpg" alt="Page 18" loading="lazy"></div>
+      <div class="page"><img src="pages/page-019.jpg" alt="Page 19" loading="lazy"></div>
+      <div class="page"><img src="pages/page-020.jpg" alt="Page 20" loading="lazy"></div>
+      <div class="page"><img src="pages/page-021.jpg" alt="Page 21" loading="lazy"></div>
+      <div class="page"><img src="pages/page-022.jpg" alt="Page 22" loading="lazy"></div>
+      <div class="page"><img src="pages/page-023.jpg" alt="Page 23" loading="lazy"></div>
+      <div class="page"><img src="pages/page-024.jpg" alt="Page 24" loading="lazy"></div>
+      <div class="page"><img src="pages/page-025.jpg" alt="Page 25" loading="lazy"></div>
+      <div class="page"><img src="pages/page-026.jpg" alt="Page 26" loading="lazy"></div>
+      <div class="page"><img src="pages/page-027.jpg" alt="Page 27" loading="lazy"></div>
+      <div class="page"><img src="pages/page-028.jpg" alt="Page 28" loading="lazy"></div>
+      <div class="page"><img src="pages/page-029.jpg" alt="Page 29" loading="lazy"></div>
+      <div class="page"><img src="pages/page-030.jpg" alt="Page 30" loading="lazy"></div>
+      <div class="page"><img src="pages/page-031.jpg" alt="Page 31" loading="lazy"></div>
+      <div class="page"><img src="pages/page-032.jpg" alt="Page 32" loading="lazy"></div>
+      <div class="page"><img src="pages/page-033.jpg" alt="Page 33" loading="lazy"></div>
+      <div class="page"><img src="pages/page-034.jpg" alt="Page 34" loading="lazy"></div>
+      <div class="page"><img src="pages/page-035.jpg" alt="Page 35" loading="lazy"></div>
+      <div class="page"><img src="pages/page-036.jpg" alt="Page 36" loading="lazy"></div>
+      <div class="page"><img src="pages/page-037.jpg" alt="Page 37" loading="lazy"></div>
+      <div class="page"><img src="pages/page-038.jpg" alt="Page 38" loading="lazy"></div>
+      <div class="page"><img src="pages/page-039.jpg" alt="Page 39" loading="lazy"></div>
+      <div class="page"><img src="pages/page-040.jpg" alt="Page 40" loading="lazy"></div>
+      <div class="page"><img src="pages/page-041.jpg" alt="Page 41" loading="lazy"></div>
+      <div class="page"><img src="pages/page-042.jpg" alt="Page 42" loading="lazy"></div>
+      <div class="page"><img src="pages/page-043.jpg" alt="Page 43" loading="lazy"></div>
+      <div class="page"><img src="pages/page-044.jpg" alt="Page 44" loading="lazy"></div>
+      <div class="page"><img src="pages/page-045.jpg" alt="Page 45" loading="lazy"></div>
+      <div class="page"><img src="pages/page-046.jpg" alt="Page 46" loading="lazy"></div>
+      <div class="page"><img src="pages/page-047.jpg" alt="Page 47" loading="lazy"></div>
+      <div class="page"><img src="pages/page-048.jpg" alt="Page 48" loading="lazy"></div>
+      <div class="page"><img src="pages/page-049.jpg" alt="Page 49" loading="lazy"></div>
+      <div class="page"><img src="pages/page-050.jpg" alt="Page 50" loading="lazy"></div>
+      <div class="page"><img src="pages/page-051.jpg" alt="Page 51" loading="lazy"></div>
+      <div class="page"><img src="pages/page-052.jpg" alt="Page 52" loading="lazy"></div>
+      <div class="page"><img src="pages/page-053.jpg" alt="Page 53" loading="lazy"></div>
+      <div class="page"><img src="pages/page-054.jpg" alt="Page 54" loading="lazy"></div>
+      <div class="page"><img src="pages/page-055.jpg" alt="Page 55" loading="lazy"></div>
+      <div class="page"><img src="pages/page-056.jpg" alt="Page 56" loading="lazy"></div>
+      <div class="page"><img src="pages/page-057.jpg" alt="Page 57" loading="lazy"></div>
+      <div class="page"><img src="pages/page-058.jpg" alt="Page 58" loading="lazy"></div>
+      <div class="page"><img src="pages/page-059.jpg" alt="Page 59" loading="lazy"></div>
+      <div class="page"><img src="pages/page-060.jpg" alt="Page 60" loading="lazy"></div>
+      <div class="page"><img src="pages/page-061.jpg" alt="Page 61" loading="lazy"></div>
+      <div class="page"><img src="pages/page-062.jpg" alt="Page 62" loading="lazy"></div>
+      <div class="page"><img src="pages/page-063.jpg" alt="Page 63" loading="lazy"></div>
+      <div class="page"><img src="pages/page-064.jpg" alt="Page 64" loading="lazy"></div>
+      <div class="page"><img src="pages/page-065.jpg" alt="Page 65" loading="lazy"></div>
+      <div class="page"><img src="pages/page-066.jpg" alt="Page 66" loading="lazy"></div>
+      <div class="page"><img src="pages/page-067.jpg" alt="Page 67" loading="lazy"></div>
+      <div class="page"><img src="pages/page-068.jpg" alt="Page 68" loading="lazy"></div>
+      <div class="page"><img src="pages/page-069.jpg" alt="Page 69" loading="lazy"></div>
+      <div class="page"><img src="pages/page-070.jpg" alt="Page 70" loading="lazy"></div>
+      <div class="page"><img src="pages/page-071.jpg" alt="Page 71" loading="lazy"></div>
+      <div class="page"><img src="pages/page-072.jpg" alt="Page 72" loading="lazy"></div>
+      <div class="page"><img src="pages/page-073.jpg" alt="Page 73" loading="lazy"></div>
+      <div class="page"><img src="pages/page-074.jpg" alt="Page 74" loading="lazy"></div>
+      <div class="page"><img src="pages/page-075.jpg" alt="Page 75" loading="lazy"></div>
+      <div class="page"><img src="pages/page-076.jpg" alt="Page 76" loading="lazy"></div>
+      <div class="page"><img src="pages/page-077.jpg" alt="Page 77" loading="lazy"></div>
+      <div class="page"><img src="pages/page-078.jpg" alt="Page 78" loading="lazy"></div>
+      <div class="page"><img src="pages/page-079.jpg" alt="Page 79" loading="lazy"></div>
+      <div class="page"><img src="pages/page-080.jpg" alt="Page 80" loading="lazy"></div>
+      <div class="page"><img src="pages/page-081.jpg" alt="Page 81" loading="lazy"></div>
+      <div class="page"><img src="pages/page-082.jpg" alt="Page 82" loading="lazy"></div>
+      <div class="page"><img src="pages/page-083.jpg" alt="Page 83" loading="lazy"></div>
+      <div class="page"><img src="pages/page-084.jpg" alt="Page 84" loading="lazy"></div>
+      <div class="page"><img src="pages/page-085.jpg" alt="Page 85" loading="lazy"></div>
+      <div class="page"><img src="pages/page-086.jpg" alt="Page 86" loading="lazy"></div>
+      <div class="page"><img src="pages/page-087.jpg" alt="Page 87" loading="lazy"></div>
+      <div class="page"><img src="pages/page-088.jpg" alt="Page 88" loading="lazy"></div>
+      <div class="page"><img src="pages/page-089.jpg" alt="Page 89" loading="lazy"></div>
+      <div class="page"><img src="pages/page-090.jpg" alt="Page 90" loading="lazy"></div>
+      <div class="page"><img src="pages/page-091.jpg" alt="Page 91" loading="lazy"></div>
+      <div class="page"><img src="pages/page-092.jpg" alt="Page 92" loading="lazy"></div>
+      <div class="page"><img src="pages/page-093.jpg" alt="Page 93" loading="lazy"></div>
+      <div class="page"><img src="pages/page-094.jpg" alt="Page 94" loading="lazy"></div>
+      <div class="page"><img src="pages/page-095.jpg" alt="Page 95" loading="lazy"></div>
+      <div class="page"><img src="pages/page-096.jpg" alt="Page 96" loading="lazy"></div>
+      <div class="page"><img src="pages/page-097.jpg" alt="Page 97" loading="lazy"></div>
+      <div class="page"><img src="pages/page-098.jpg" alt="Page 98" loading="lazy"></div>
+      <div class="page"><img src="pages/page-099.jpg" alt="Page 99" loading="lazy"></div>
+      <div class="page"><img src="pages/page-100.jpg" alt="Page 100" loading="lazy"></div>
+      <div class="page"><img src="pages/page-101.jpg" alt="Page 101" loading="lazy"></div>
+      <div class="page"><img src="pages/page-102.jpg" alt="Page 102" loading="lazy"></div>
+      <div class="page"><img src="pages/page-103.jpg" alt="Page 103" loading="lazy"></div>
+      <div class="page"><img src="pages/page-104.jpg" alt="Page 104" loading="lazy"></div>
+      <div class="page"><img src="pages/page-105.jpg" alt="Page 105" loading="lazy"></div>
+      <div class="page"><img src="pages/page-106.jpg" alt="Page 106" loading="lazy"></div>
+      <div class="page"><img src="pages/page-107.jpg" alt="Page 107" loading="lazy"></div>
+      <div class="page"><img src="pages/page-108.jpg" alt="Page 108" loading="lazy"></div>
+      <div class="page"><img src="pages/page-109.jpg" alt="Page 109" loading="lazy"></div>
+      <div class="page"><img src="pages/page-110.jpg" alt="Page 110" loading="lazy"></div>
+      <div class="page"><img src="pages/page-111.jpg" alt="Page 111" loading="lazy"></div>
+      <div class="page"><img src="pages/page-112.jpg" alt="Page 112" loading="lazy"></div>
+      <div class="page"><img src="pages/page-113.jpg" alt="Page 113" loading="lazy"></div>
+      <div class="page"><img src="pages/page-114.jpg" alt="Page 114" loading="lazy"></div>
+      <div class="page"><img src="pages/page-115.jpg" alt="Page 115" loading="lazy"></div>
+      <div class="page"><img src="pages/page-116.jpg" alt="Page 116" loading="lazy"></div>
+      <div class="page"><img src="pages/page-117.jpg" alt="Page 117" loading="lazy"></div>
+      <div class="page"><img src="pages/page-118.jpg" alt="Page 118" loading="lazy"></div>
+      <div class="page"><img src="pages/page-119.jpg" alt="Page 119" loading="lazy"></div>
+      <div class="page"><img src="pages/page-120.jpg" alt="Page 120" loading="lazy"></div>
+      <div class="page"><img src="pages/page-121.jpg" alt="Page 121" loading="lazy"></div>
+      <div class="page"><img src="pages/page-122.jpg" alt="Page 122" loading="lazy"></div>
+      <div class="page"><img src="pages/page-123.jpg" alt="Page 123" loading="lazy"></div>
+      <div class="page"><img src="pages/page-124.jpg" alt="Page 124" loading="lazy"></div>
+      <div class="page"><img src="pages/page-125.jpg" alt="Page 125" loading="lazy"></div>
+      <div class="page"><img src="pages/page-126.jpg" alt="Page 126" loading="lazy"></div>
+      <div class="page"><img src="pages/page-127.jpg" alt="Page 127" loading="lazy"></div>
+      <div class="page"><img src="pages/page-128.jpg" alt="Page 128" loading="lazy"></div>
+      <div class="page"><img src="pages/page-129.jpg" alt="Page 129" loading="lazy"></div>
+      <div class="page"><img src="pages/page-130.jpg" alt="Page 130" loading="lazy"></div>
+      <div class="page"><img src="pages/page-131.jpg" alt="Page 131" loading="lazy"></div>
+      <div class="page"><img src="pages/page-132.jpg" alt="Page 132" loading="lazy"></div>
+      <div class="page"><img src="pages/page-133.jpg" alt="Page 133" loading="lazy"></div>
+      <div class="page"><img src="pages/page-134.jpg" alt="Page 134" loading="lazy"></div>
+      <div class="page"><img src="pages/page-135.jpg" alt="Page 135" loading="lazy"></div>
+      <div class="page"><img src="pages/page-136.jpg" alt="Page 136" loading="lazy"></div>
+      <div class="page"><img src="pages/page-137.jpg" alt="Page 137" loading="lazy"></div>
+      <div class="page"><img src="pages/page-138.jpg" alt="Page 138" loading="lazy"></div>
+      <div class="page"><img src="pages/page-139.jpg" alt="Page 139" loading="lazy"></div>
+      <div class="page"><img src="pages/page-140.jpg" alt="Page 140" loading="lazy"></div>
+      <div class="page"><img src="pages/page-141.jpg" alt="Page 141" loading="lazy"></div>
+      <div class="page"><img src="pages/page-142.jpg" alt="Page 142" loading="lazy"></div>
+      <div class="page"><img src="pages/page-143.jpg" alt="Page 143" loading="lazy"></div>
+      <div class="page"><img src="pages/page-144.jpg" alt="Page 144" loading="lazy"></div>
+      <div class="page"><img src="pages/page-145.jpg" alt="Page 145" loading="lazy"></div>
+      <div class="page"><img src="pages/page-146.jpg" alt="Page 146" loading="lazy"></div>
+      <div class="page"><img src="pages/page-147.jpg" alt="Page 147" loading="lazy"></div>
+      <div class="page"><img src="pages/page-148.jpg" alt="Page 148" loading="lazy"></div>
+      <div class="page"><img src="pages/page-149.jpg" alt="Page 149" loading="lazy"></div>
+      <div class="page"><img src="pages/page-150.jpg" alt="Page 150" loading="lazy"></div>
+      <div class="page"><img src="pages/page-151.jpg" alt="Page 151" loading="lazy"></div>
+      <div class="page"><img src="pages/page-152.jpg" alt="Page 152" loading="lazy"></div>
+      <div class="page"><img src="pages/page-153.jpg" alt="Page 153" loading="lazy"></div>
+      <div class="page"><img src="pages/page-154.jpg" alt="Page 154" loading="lazy"></div>
+      <div class="page"><img src="pages/page-155.jpg" alt="Page 155" loading="lazy"></div>
+      <div class="page"><img src="pages/page-156.jpg" alt="Page 156" loading="lazy"></div>
+      <div class="page"><img src="pages/page-157.jpg" alt="Page 157" loading="lazy"></div>
+      <div class="page"><img src="pages/page-158.jpg" alt="Page 158" loading="lazy"></div>
+      <div class="page"><img src="pages/page-159.jpg" alt="Page 159" loading="lazy"></div>
+      <div class="page"><img src="pages/page-160.jpg" alt="Page 160" loading="lazy"></div>
+      <div class="page"><img src="pages/page-161.jpg" alt="Page 161" loading="lazy"></div>
+      <div class="page"><img src="pages/page-162.jpg" alt="Page 162" loading="lazy"></div>
+      <div class="page"><img src="pages/page-163.jpg" alt="Page 163" loading="lazy"></div>
+      <div class="page"><img src="pages/page-164.jpg" alt="Page 164" loading="lazy"></div>
+      <div class="page"><img src="pages/page-165.jpg" alt="Page 165" loading="lazy"></div>
+      <div class="page"><img src="pages/page-166.jpg" alt="Page 166" loading="lazy"></div>
+      <div class="page"><img src="pages/page-167.jpg" alt="Page 167" loading="lazy"></div>
+      <div class="page"><img src="pages/page-168.jpg" alt="Page 168" loading="lazy"></div>
+      <div class="page"><img src="pages/page-169.jpg" alt="Page 169" loading="lazy"></div>
+      <div class="page"><img src="pages/page-170.jpg" alt="Page 170" loading="lazy"></div>
+      <div class="page"><img src="pages/page-171.jpg" alt="Page 171" loading="lazy"></div>
+      <div class="page"><img src="pages/page-172.jpg" alt="Page 172" loading="lazy"></div>
+      <div class="page"><img src="pages/page-173.jpg" alt="Page 173" loading="lazy"></div>
+      <div class="page"><img src="pages/page-174.jpg" alt="Page 174" loading="lazy"></div>
+      <div class="page"><img src="pages/page-175.jpg" alt="Page 175" loading="lazy"></div>
+      <div class="page"><img src="pages/page-176.jpg" alt="Page 176" loading="lazy"></div>
+      <div class="page"><img src="pages/page-177.jpg" alt="Page 177" loading="lazy"></div>
+      <div class="page"><img src="pages/page-178.jpg" alt="Page 178" loading="lazy"></div>
+      <div class="page"><img src="pages/page-179.jpg" alt="Page 179" loading="lazy"></div>
+      <div class="page"><img src="pages/page-180.jpg" alt="Page 180" loading="lazy"></div>
+      <div class="page"><img src="pages/page-181.jpg" alt="Page 181" loading="lazy"></div>
+      <div class="page"><img src="pages/page-182.jpg" alt="Page 182" loading="lazy"></div>
+      <div class="page"><img src="pages/page-183.jpg" alt="Page 183" loading="lazy"></div>
+      <div class="page"><img src="pages/page-184.jpg" alt="Page 184" loading="lazy"></div>
+      <div class="page"><img src="pages/page-185.jpg" alt="Page 185" loading="lazy"></div>
+      <div class="page"><img src="pages/page-186.jpg" alt="Page 186" loading="lazy"></div>
+      <div class="page"><img src="pages/page-187.jpg" alt="Page 187" loading="lazy"></div>
+      <div class="page"><img src="pages/page-188.jpg" alt="Page 188" loading="lazy"></div>
+      <div class="page"><img src="pages/page-189.jpg" alt="Page 189" loading="lazy"></div>
+      <div class="page"><img src="pages/page-190.jpg" alt="Page 190" loading="lazy"></div>
+      <div class="page"><img src="pages/page-191.jpg" alt="Page 191" loading="lazy"></div>
+      <div class="page"><img src="pages/page-192.jpg" alt="Page 192" loading="lazy"></div>
+      <div class="page"><img src="pages/page-193.jpg" alt="Page 193" loading="lazy"></div>
+      <div class="page"><img src="pages/page-194.jpg" alt="Page 194" loading="lazy"></div>
+      <div class="page"><img src="pages/page-195.jpg" alt="Page 195" loading="lazy"></div>
+      <div class="page"><img src="pages/page-196.jpg" alt="Page 196" loading="lazy"></div>
+      <div class="page"><img src="pages/page-197.jpg" alt="Page 197" loading="lazy"></div>
+      <div class="page"><img src="pages/page-198.jpg" alt="Page 198" loading="lazy"></div>
+      <div class="page"><img src="pages/page-199.jpg" alt="Page 199" loading="lazy"></div>
+      <div class="page"><img src="pages/page-200.jpg" alt="Page 200" loading="lazy"></div>
+      <div class="page"><img src="pages/page-201.jpg" alt="Page 201" loading="lazy"></div>
+      <div class="page"><img src="pages/page-202.jpg" alt="Page 202" loading="lazy"></div>
+      <div class="page"><img src="pages/page-203.jpg" alt="Page 203" loading="lazy"></div>
+      <div class="page"><img src="pages/page-204.jpg" alt="Page 204" loading="lazy"></div>
+      <div class="page"><img src="pages/page-205.jpg" alt="Page 205" loading="lazy"></div>
+      <div class="page"><img src="pages/page-206.jpg" alt="Page 206" loading="lazy"></div>
+      <div class="page"><img src="pages/page-207.jpg" alt="Page 207" loading="lazy"></div>
+      <div class="page"><img src="pages/page-208.jpg" alt="Page 208" loading="lazy"></div>
+      <div class="page"><img src="pages/page-209.jpg" alt="Page 209" loading="lazy"></div>
+      <div class="page"><img src="pages/page-210.jpg" alt="Page 210" loading="lazy"></div>
+      <div class="page"><img src="pages/page-211.jpg" alt="Page 211" loading="lazy"></div>
+      <div class="page"><img src="pages/page-212.jpg" alt="Page 212" loading="lazy"></div>
+      <div class="page"><img src="pages/page-213.jpg" alt="Page 213" loading="lazy"></div>
+      <div class="page"><img src="pages/page-214.jpg" alt="Page 214" loading="lazy"></div>
+      <div class="page"><img src="pages/page-215.jpg" alt="Page 215" loading="lazy"></div>
+      <div class="page"><img src="pages/page-216.jpg" alt="Page 216" loading="lazy"></div>
+      <div class="page"><img src="pages/page-217.jpg" alt="Page 217" loading="lazy"></div>
+      <div class="page"><img src="pages/page-218.jpg" alt="Page 218" loading="lazy"></div>
+      <div class="page"><img src="pages/page-219.jpg" alt="Page 219" loading="lazy"></div>
+      <div class="page"><img src="pages/page-220.jpg" alt="Page 220" loading="lazy"></div>
+      <div class="page"><img src="pages/page-221.jpg" alt="Page 221" loading="lazy"></div>
+      <div class="page"><img src="pages/page-222.jpg" alt="Page 222" loading="lazy"></div>
+      <div class="page"><img src="pages/page-223.jpg" alt="Page 223" loading="lazy"></div>
+      <div class="page"><img src="pages/page-224.jpg" alt="Page 224" loading="lazy"></div>
+      <div class="page"><img src="pages/page-225.jpg" alt="Page 225" loading="lazy"></div>
+      <div class="page"><img src="pages/page-226.jpg" alt="Page 226" loading="lazy"></div>
+      <div class="page"><img src="pages/page-227.jpg" alt="Page 227" loading="lazy"></div>
+      <div class="page"><img src="pages/page-228.jpg" alt="Page 228" loading="lazy"></div>
+      <div class="page"><img src="pages/page-229.jpg" alt="Page 229" loading="lazy"></div>
+      <div class="page"><img src="pages/page-230.jpg" alt="Page 230" loading="lazy"></div>
+      <div class="page"><img src="pages/page-231.jpg" alt="Page 231" loading="lazy"></div>
+      <div class="page"><img src="pages/page-232.jpg" alt="Page 232" loading="lazy"></div>
+      <div class="page"><img src="pages/page-233.jpg" alt="Page 233" loading="lazy"></div>
+      <div class="page"><img src="pages/page-234.jpg" alt="Page 234" loading="lazy"></div>
+      <div class="page"><img src="pages/page-235.jpg" alt="Page 235" loading="lazy"></div>
+      <div class="page"><img src="pages/page-236.jpg" alt="Page 236" loading="lazy"></div>
+      <div class="page"><img src="pages/page-237.jpg" alt="Page 237" loading="lazy"></div>
+      <div class="page"><img src="pages/page-238.jpg" alt="Page 238" loading="lazy"></div>
+      <div class="page"><img src="pages/page-239.jpg" alt="Page 239" loading="lazy"></div>
+      <div class="page"><img src="pages/page-240.jpg" alt="Page 240" loading="lazy"></div>
+      <div class="page"><img src="pages/page-241.jpg" alt="Page 241" loading="lazy"></div>
+      <div class="page"><img src="pages/page-242.jpg" alt="Page 242" loading="lazy"></div>
+      <div class="page"><img src="pages/page-243.jpg" alt="Page 243" loading="lazy"></div>
+      <div class="page"><img src="pages/page-244.jpg" alt="Page 244" loading="lazy"></div>
+      <div class="page"><img src="pages/page-245.jpg" alt="Page 245" loading="lazy"></div>
+      <div class="page"><img src="pages/page-246.jpg" alt="Page 246" loading="lazy"></div>
+      <div class="page"><img src="pages/page-247.jpg" alt="Page 247" loading="lazy"></div>
+      <div class="page"><img src="pages/page-248.jpg" alt="Page 248" loading="lazy"></div>
+      <div class="page"><img src="pages/page-249.jpg" alt="Page 249" loading="lazy"></div>
+      <div class="page"><img src="pages/page-250.jpg" alt="Page 250" loading="lazy"></div>
+      <div class="page"><img src="pages/page-251.jpg" alt="Page 251" loading="lazy"></div>
+      <div class="page"><img src="pages/page-252.jpg" alt="Page 252" loading="lazy"></div>
+      <div class="page"><img src="pages/page-253.jpg" alt="Page 253" loading="lazy"></div>
+      <div class="page"><img src="pages/page-254.jpg" alt="Page 254" loading="lazy"></div>
+      <div class="page"><img src="pages/page-255.jpg" alt="Page 255" loading="lazy"></div>
+      <div class="page"><img src="pages/page-256.jpg" alt="Page 256" loading="lazy"></div>
+      <div class="page"><img src="pages/page-257.jpg" alt="Page 257" loading="lazy"></div>
+      <div class="page"><img src="pages/page-258.jpg" alt="Page 258" loading="lazy"></div>
+      <div class="page"><img src="pages/page-259.jpg" alt="Page 259" loading="lazy"></div>
+      <div class="page"><img src="pages/page-260.jpg" alt="Page 260" loading="lazy"></div>
+      <div class="page"><img src="pages/page-261.jpg" alt="Page 261" loading="lazy"></div>
+      <div class="page"><img src="pages/page-262.jpg" alt="Page 262" loading="lazy"></div>
+      <div class="page"><img src="pages/page-263.jpg" alt="Page 263" loading="lazy"></div>
+      <div class="page"><img src="pages/page-264.jpg" alt="Page 264" loading="lazy"></div>
+      <div class="page"><img src="pages/page-265.jpg" alt="Page 265" loading="lazy"></div>
+      <div class="page"><img src="pages/page-266.jpg" alt="Page 266" loading="lazy"></div>
+      <div class="page"><img src="pages/page-267.jpg" alt="Page 267" loading="lazy"></div>
+      <div class="page"><img src="pages/page-268.jpg" alt="Page 268" loading="lazy"></div>
+      <div class="page"><img src="pages/page-269.jpg" alt="Page 269" loading="lazy"></div>
+      <div class="page"><img src="pages/page-270.jpg" alt="Page 270" loading="lazy"></div>
+      <div class="page"><img src="pages/page-271.jpg" alt="Page 271" loading="lazy"></div>
+      <div class="page"><img src="pages/page-272.jpg" alt="Page 272" loading="lazy"></div>
+      <div class="page"><img src="pages/page-273.jpg" alt="Page 273" loading="lazy"></div>
+      <div class="page"><img src="pages/page-274.jpg" alt="Page 274" loading="lazy"></div>
+      <div class="page"><img src="pages/page-275.jpg" alt="Page 275" loading="lazy"></div>
+      <div class="page"><img src="pages/page-276.jpg" alt="Page 276" loading="lazy"></div>
+      <div class="page"><img src="pages/page-277.jpg" alt="Page 277" loading="lazy"></div>
+      <div class="page"><img src="pages/page-278.jpg" alt="Page 278" loading="lazy"></div>
+      <div class="page"><img src="pages/page-279.jpg" alt="Page 279" loading="lazy"></div>
+      <div class="page"><img src="pages/page-280.jpg" alt="Page 280" loading="lazy"></div>
+      <div class="page"><img src="pages/page-281.jpg" alt="Page 281" loading="lazy"></div>
+      <div class="page"><img src="pages/page-282.jpg" alt="Page 282" loading="lazy"></div>
+      <div class="page"><img src="pages/page-283.jpg" alt="Page 283" loading="lazy"></div>
+      <div class="page"><img src="pages/page-284.jpg" alt="Page 284" loading="lazy"></div>
+      <div class="page"><img src="pages/page-285.jpg" alt="Page 285" loading="lazy"></div>
+      <div class="page"><img src="pages/page-286.jpg" alt="Page 286" loading="lazy"></div>
+      <div class="page"><img src="pages/page-287.jpg" alt="Page 287" loading="lazy"></div>
+      <div class="page"><img src="pages/page-288.jpg" alt="Page 288" loading="lazy"></div>
+      <div class="page"><img src="pages/page-289.jpg" alt="Page 289" loading="lazy"></div>
+      <div class="page"><img src="pages/page-290.jpg" alt="Page 290" loading="lazy"></div>
+      <div class="page"><img src="pages/page-291.jpg" alt="Page 291" loading="lazy"></div>
+      <div class="page"><img src="pages/page-292.jpg" alt="Page 292" loading="lazy"></div>
+      <div class="page"><img src="pages/page-293.jpg" alt="Page 293" loading="lazy"></div>
+      <div class="page"><img src="pages/page-294.jpg" alt="Page 294" loading="lazy"></div>
+      <div class="page"><img src="pages/page-295.jpg" alt="Page 295" loading="lazy"></div>
+      <div class="page"><img src="pages/page-296.jpg" alt="Page 296" loading="lazy"></div>
+      <div class="page"><img src="pages/page-297.jpg" alt="Page 297" loading="lazy"></div>
+      <div class="page"><img src="pages/page-298.jpg" alt="Page 298" loading="lazy"></div>
+      <div class="page"><img src="pages/page-299.jpg" alt="Page 299" loading="lazy"></div>
+      <div class="page"><img src="pages/page-300.jpg" alt="Page 300" loading="lazy"></div>
+      <div class="page"><img src="pages/page-301.jpg" alt="Page 301" loading="lazy"></div>
+      <div class="page"><img src="pages/page-302.jpg" alt="Page 302" loading="lazy"></div>
+      <div class="page"><img src="pages/page-303.jpg" alt="Page 303" loading="lazy"></div>
+      <div class="page"><img src="pages/page-304.jpg" alt="Page 304" loading="lazy"></div>
+      <div class="page"><img src="pages/page-305.jpg" alt="Page 305" loading="lazy"></div>
+      <div class="page"><img src="pages/page-306.jpg" alt="Page 306" loading="lazy"></div>
+      <div class="page"><img src="pages/page-307.jpg" alt="Page 307" loading="lazy"></div>
+      <div class="page"><img src="pages/page-308.jpg" alt="Page 308" loading="lazy"></div>
+      <div class="page"><img src="pages/page-309.jpg" alt="Page 309" loading="lazy"></div>
+      <div class="page"><img src="pages/page-310.jpg" alt="Page 310" loading="lazy"></div>
+      <div class="page"><img src="pages/page-311.jpg" alt="Page 311" loading="lazy"></div>
+      <div class="page"><img src="pages/page-312.jpg" alt="Page 312" loading="lazy"></div>
+      <div class="page"><img src="pages/page-313.jpg" alt="Page 313" loading="lazy"></div>
+      <div class="page"><img src="pages/page-314.jpg" alt="Page 314" loading="lazy"></div>
+      <div class="page"><img src="pages/page-315.jpg" alt="Page 315" loading="lazy"></div>
+      <div class="page"><img src="pages/page-316.jpg" alt="Page 316" loading="lazy"></div>
+      <div class="page"><img src="pages/page-317.jpg" alt="Page 317" loading="lazy"></div>
+      <div class="page"><img src="pages/page-318.jpg" alt="Page 318" loading="lazy"></div>
+      <div class="page"><img src="pages/page-319.jpg" alt="Page 319" loading="lazy"></div>
+      <div class="page"><img src="pages/page-320.jpg" alt="Page 320" loading="lazy"></div>
+      <div class="page"><img src="pages/page-321.jpg" alt="Page 321" loading="lazy"></div>
+      <div class="page"><img src="pages/page-322.jpg" alt="Page 322" loading="lazy"></div>
+      <div class="page"><img src="pages/page-323.jpg" alt="Page 323" loading="lazy"></div>
+      <div class="page"><img src="pages/page-324.jpg" alt="Page 324" loading="lazy"></div>
+      <div class="page"><img src="pages/page-325.jpg" alt="Page 325" loading="lazy"></div>
+      <div class="page"><img src="pages/page-326.jpg" alt="Page 326" loading="lazy"></div>
+      <div class="page"><img src="pages/page-327.jpg" alt="Page 327" loading="lazy"></div>
+      <div class="page"><img src="pages/page-328.jpg" alt="Page 328" loading="lazy"></div>
+      <div class="page"><img src="pages/page-329.jpg" alt="Page 329" loading="lazy"></div>
+      <div class="page"><img src="pages/page-330.jpg" alt="Page 330" loading="lazy"></div>
+      <div class="page"><img src="pages/page-331.jpg" alt="Page 331" loading="lazy"></div>
+      <div class="page"><img src="pages/page-332.jpg" alt="Page 332" loading="lazy"></div>
+      <div class="page"><img src="pages/page-333.jpg" alt="Page 333" loading="lazy"></div>
+      <div class="page"><img src="pages/page-334.jpg" alt="Page 334" loading="lazy"></div>
+      <div class="page"><img src="pages/page-335.jpg" alt="Page 335" loading="lazy"></div>
+      <div class="page"><img src="pages/page-336.jpg" alt="Page 336" loading="lazy"></div>
+      <div class="page"><img src="pages/page-337.jpg" alt="Page 337" loading="lazy"></div>
+      <div class="page"><img src="pages/page-338.jpg" alt="Page 338" loading="lazy"></div>
+      <div class="page"><img src="pages/page-339.jpg" alt="Page 339" loading="lazy"></div>
+      <div class="page"><img src="pages/page-340.jpg" alt="Page 340" loading="lazy"></div>
+      <div class="page"><img src="pages/page-341.jpg" alt="Page 341" loading="lazy"></div>
+      <div class="page"><img src="pages/page-342.jpg" alt="Page 342" loading="lazy"></div>
+      <div class="page"><img src="pages/page-343.jpg" alt="Page 343" loading="lazy"></div>
+      <div class="page"><img src="pages/page-344.jpg" alt="Page 344" loading="lazy"></div>
+      <div class="page"><img src="pages/page-345.jpg" alt="Page 345" loading="lazy"></div>
+      <div class="page"><img src="pages/page-346.jpg" alt="Page 346" loading="lazy"></div>
+      <div class="page"><img src="pages/page-347.jpg" alt="Page 347" loading="lazy"></div>
+      <div class="page"><img src="pages/page-348.jpg" alt="Page 348" loading="lazy"></div>
+      <div class="page"><img src="pages/page-349.jpg" alt="Page 349" loading="lazy"></div>
+      <div class="page"><img src="pages/page-350.jpg" alt="Page 350" loading="lazy"></div>
+      <div class="page"><img src="pages/page-351.jpg" alt="Page 351" loading="lazy"></div>
+      <div class="page"><img src="pages/page-352.jpg" alt="Page 352" loading="lazy"></div>
+      <div class="page"><img src="pages/page-353.jpg" alt="Page 353" loading="lazy"></div>
+      <div class="page"><img src="pages/page-354.jpg" alt="Page 354" loading="lazy"></div>
+      <div class="page"><img src="pages/page-355.jpg" alt="Page 355" loading="lazy"></div>
+      <div class="page"><img src="pages/page-356.jpg" alt="Page 356" loading="lazy"></div>
+      <div class="page"><img src="pages/page-357.jpg" alt="Page 357" loading="lazy"></div>
+      <div class="page"><img src="pages/page-358.jpg" alt="Page 358" loading="lazy"></div>
+      <div class="page"><img src="pages/page-359.jpg" alt="Page 359" loading="lazy"></div>
+      <div class="page"><img src="pages/page-360.jpg" alt="Page 360" loading="lazy"></div>
+      <div class="page"><img src="pages/page-361.jpg" alt="Page 361" loading="lazy"></div>
+      <div class="page"><img src="pages/page-362.jpg" alt="Page 362" loading="lazy"></div>
+      <div class="page"><img src="pages/page-363.jpg" alt="Page 363" loading="lazy"></div>
+      <div class="page"><img src="pages/page-364.jpg" alt="Page 364" loading="lazy"></div>
+      <div class="page"><img src="pages/page-365.jpg" alt="Page 365" loading="lazy"></div>
+      <div class="page"><img src="pages/page-366.jpg" alt="Page 366" loading="lazy"></div>
+      <div class="page"><img src="pages/page-367.jpg" alt="Page 367" loading="lazy"></div>
+      <div class="page"><img src="pages/page-368.jpg" alt="Page 368" loading="lazy"></div>
+      <div class="page"><img src="pages/page-369.jpg" alt="Page 369" loading="lazy"></div>
+      <div class="page"><img src="pages/page-370.jpg" alt="Page 370" loading="lazy"></div>
+      <div class="page"><img src="pages/page-371.jpg" alt="Page 371" loading="lazy"></div>
+      <div class="page"><img src="pages/page-372.jpg" alt="Page 372" loading="lazy"></div>
+      <div class="page"><img src="pages/page-373.jpg" alt="Page 373" loading="lazy"></div>
+      <div class="page"><img src="pages/page-374.jpg" alt="Page 374" loading="lazy"></div>
+      <div class="page"><img src="pages/page-375.jpg" alt="Page 375" loading="lazy"></div>
+      <div class="page"><img src="pages/page-376.jpg" alt="Page 376" loading="lazy"></div>
+      <div class="page"><img src="pages/page-377.jpg" alt="Page 377" loading="lazy"></div>
+      <div class="page"><img src="pages/page-378.jpg" alt="Page 378" loading="lazy"></div>
+      <div class="page"><img src="pages/page-379.jpg" alt="Page 379" loading="lazy"></div>
+      <div class="page"><img src="pages/page-380.jpg" alt="Page 380" loading="lazy"></div>
+      <div class="page"><img src="pages/page-381.jpg" alt="Page 381" loading="lazy"></div>
+      <div class="page"><img src="pages/page-382.jpg" alt="Page 382" loading="lazy"></div>
+      <div class="page"><img src="pages/page-383.jpg" alt="Page 383" loading="lazy"></div>
+      <div class="page"><img src="pages/page-384.jpg" alt="Page 384" loading="lazy"></div>
+      <div class="page"><img src="pages/page-385.jpg" alt="Page 385" loading="lazy"></div>
+      <div class="page"><img src="pages/page-386.jpg" alt="Page 386" loading="lazy"></div>
+      <div class="page"><img src="pages/page-387.jpg" alt="Page 387" loading="lazy"></div>
+      <div class="page"><img src="pages/page-388.jpg" alt="Page 388" loading="lazy"></div>
+      <div class="page"><img src="pages/page-389.jpg" alt="Page 389" loading="lazy"></div>
+      <div class="page"><img src="pages/page-390.jpg" alt="Page 390" loading="lazy"></div>
+      <div class="page"><img src="pages/page-391.jpg" alt="Page 391" loading="lazy"></div>
+      <div class="page"><img src="pages/page-392.jpg" alt="Page 392" loading="lazy"></div>
+      <div class="page"><img src="pages/page-393.jpg" alt="Page 393" loading="lazy"></div>
+      <div class="page"><img src="pages/page-394.jpg" alt="Page 394" loading="lazy"></div>
+      <div class="page"><img src="pages/page-395.jpg" alt="Page 395" loading="lazy"></div>
+      <div class="page"><img src="pages/page-396.jpg" alt="Page 396" loading="lazy"></div>
+      <div class="page"><img src="pages/page-397.jpg" alt="Page 397" loading="lazy"></div>
+      <div class="page"><img src="pages/page-398.jpg" alt="Page 398" loading="lazy"></div>
+      <div class="page"><img src="pages/page-399.jpg" alt="Page 399" loading="lazy"></div>
+      <div class="page"><img src="pages/page-400.jpg" alt="Page 400" loading="lazy"></div>
+      <div class="page"><img src="pages/page-401.jpg" alt="Page 401" loading="lazy"></div>
+      <div class="page"><img src="pages/page-402.jpg" alt="Page 402" loading="lazy"></div>
+      <div class="page"><img src="pages/page-403.jpg" alt="Page 403" loading="lazy"></div>
+      <div class="page"><img src="pages/page-404.jpg" alt="Page 404" loading="lazy"></div>
+      <div class="page"><img src="pages/page-405.jpg" alt="Page 405" loading="lazy"></div>
+      <div class="page"><img src="pages/page-406.jpg" alt="Page 406" loading="lazy"></div>
+      <div class="page"><img src="pages/page-407.jpg" alt="Page 407" loading="lazy"></div>
+      <div class="page"><img src="pages/page-408.jpg" alt="Page 408" loading="lazy"></div>
+      <div class="page"><img src="pages/page-409.jpg" alt="Page 409" loading="lazy"></div>
+      <div class="page"><img src="pages/page-410.jpg" alt="Page 410" loading="lazy"></div>
+      <div class="page"><img src="pages/page-411.jpg" alt="Page 411" loading="lazy"></div>
+      <div class="page"><img src="pages/page-412.jpg" alt="Page 412" loading="lazy"></div>
+      <div class="page"><img src="pages/page-413.jpg" alt="Page 413" loading="lazy"></div>
+      <div class="page"><img src="pages/page-414.jpg" alt="Page 414" loading="lazy"></div>
+      <div class="page"><img src="pages/page-415.jpg" alt="Page 415" loading="lazy"></div>
+      <div class="page"><img src="pages/page-416.jpg" alt="Page 416" loading="lazy"></div>
+      <div class="page"><img src="pages/page-417.jpg" alt="Page 417" loading="lazy"></div>
+      <div class="page"><img src="pages/page-418.jpg" alt="Page 418" loading="lazy"></div>
+      <div class="page"><img src="pages/page-419.jpg" alt="Page 419" loading="lazy"></div>
+      <div class="page"><img src="pages/page-420.jpg" alt="Page 420" loading="lazy"></div>
+      <div class="page"><img src="pages/page-421.jpg" alt="Page 421" loading="lazy"></div>
+      <div class="page"><img src="pages/page-422.jpg" alt="Page 422" loading="lazy"></div>
+      <div class="page"><img src="pages/page-423.jpg" alt="Page 423" loading="lazy"></div>
+      <div class="page"><img src="pages/page-424.jpg" alt="Page 424" loading="lazy"></div>
+      <div class="page"><img src="pages/page-425.jpg" alt="Page 425" loading="lazy"></div>
+      <div class="page"><img src="pages/page-426.jpg" alt="Page 426" loading="lazy"></div>
+      <div class="page"><img src="pages/page-427.jpg" alt="Page 427" loading="lazy"></div>
+      <div class="page"><img src="pages/page-428.jpg" alt="Page 428" loading="lazy"></div>
+      <div class="page"><img src="pages/page-429.jpg" alt="Page 429" loading="lazy"></div>
+      <div class="page"><img src="pages/page-430.jpg" alt="Page 430" loading="lazy"></div>
+      <div class="page"><img src="pages/page-431.jpg" alt="Page 431" loading="lazy"></div>
+      <div class="page"><img src="pages/page-432.jpg" alt="Page 432" loading="lazy"></div>
+      <div class="page"><img src="pages/page-433.jpg" alt="Page 433" loading="lazy"></div>
+      <div class="page"><img src="pages/page-434.jpg" alt="Page 434" loading="lazy"></div>
+      <div class="page"><img src="pages/page-435.jpg" alt="Page 435" loading="lazy"></div>
+      <div class="page"><img src="pages/page-436.jpg" alt="Page 436" loading="lazy"></div>
+      <div class="page"><img src="pages/page-437.jpg" alt="Page 437" loading="lazy"></div>
+      <div class="page"><img src="pages/page-438.jpg" alt="Page 438" loading="lazy"></div>
+      <div class="page"><img src="pages/page-439.jpg" alt="Page 439" loading="lazy"></div>
+      <div class="page"><img src="pages/page-440.jpg" alt="Page 440" loading="lazy"></div>
+    </div>
+
+    <div id="swipe-hint">&#8592; Swipe to flip pages &#8594;</div>
+    <div id="progress-bar"></div>
+  </div>
+
+  <div id="controls">
+    <button class="nav-btn" id="prev-btn">&#8592; Prev</button>
+    <div id="page-info">
+      Page 1 of 440
+      <span id="pct">0% complete</span>
+    </div>
+    <button class="nav-btn" id="next-btn">Next &#8594;</button>
+  </div>
+
+  <script>
+    // ── Elements ────────────────────────────────────────────────────────────
+    const strip      = document.getElementById("strip");
+    const prevBtn    = document.getElementById("prev-btn");
+    const nextBtn    = document.getElementById("next-btn");
+    const pageInfo   = document.getElementById("page-info");
+    const pctEl      = document.getElementById("pct");
+    const progress   = document.getElementById("progress-bar");
+    const hint       = document.getElementById("swipe-hint");
+    const cacheWrap  = document.getElementById("cache-bar-wrap");
+    const cacheBar   = document.getElementById("cache-bar");
+    const offlineBdg = document.getElementById("offline-badge");
+
+    const TOTAL = 440;
+    let current = 0;
+    let hintDismissed = false;
+
+    // ── Navigation ──────────────────────────────────────────────────────────
+    function goTo(index, animate = true) {
+      if (index < 0 || index >= TOTAL) return;
+      current = index;
+
+      if (!animate) strip.classList.add("dragging");
+      strip.style.transform = "translateX(-" + (current * 100) + "vw)";
+      if (!animate) requestAnimationFrame(() => strip.classList.remove("dragging"));
+
+      const percent = Math.round(((current + 1) / TOTAL) * 100);
+      pageInfo.firstChild.textContent = "Page " + (current + 1) + " of " + TOTAL + " ";
+      pctEl.textContent = percent + "% complete";
+      prevBtn.disabled = current === 0;
+      nextBtn.disabled = current === TOTAL - 1;
+      progress.style.width = percent + "%";
+
+      if (!hintDismissed) { hint.style.opacity = "0"; hintDismissed = true; }
+
+      // Persist
+      try { localStorage.setItem("ynh-page", current); } catch(e) {}
+    }
+
+    prevBtn.addEventListener("click", () => goTo(current - 1));
+    nextBtn.addEventListener("click", () => goTo(current + 1));
+
+    // Keyboard
+    document.addEventListener("keydown", e => {
+      if (e.key === "ArrowRight" || e.key === "ArrowDown") goTo(current + 1);
+      if (e.key === "ArrowLeft"  || e.key === "ArrowUp")   goTo(current - 1);
+    });
+
+    // ── Touch / swipe with live drag ────────────────────────────────────────
+    let touchStartX = 0, touchStartY = 0;
+    let dragDX = 0;
+    let isHorizDrag = false;
+    let dirLocked = false;
+
+    document.addEventListener("touchstart", e => {
+      touchStartX = e.touches[0].clientX;
+      touchStartY = e.touches[0].clientY;
+      dragDX = 0;
+      isHorizDrag = false;
+      dirLocked = false;
+      strip.classList.add("dragging");
+    }, { passive: true });
+
+    document.addEventListener("touchmove", e => {
+      const dx = e.touches[0].clientX - touchStartX;
+      const dy = e.touches[0].clientY - touchStartY;
+      if (!dirLocked) {
+        if (Math.abs(dx) > Math.abs(dy) && Math.abs(dx) > 8) { isHorizDrag = true; dirLocked = true; }
+        else if (Math.abs(dy) > Math.abs(dx) && Math.abs(dy) > 8) { dirLocked = true; }
+      }
+      if (isHorizDrag) {
+        dragDX = dx;
+        const base = current * 100;
+        const offset = (dragDX / window.innerWidth) * 100;
+        strip.style.transform = "translateX(calc(-" + base + "vw + " + dragDX + "px))";
+      }
+    }, { passive: true });
+
+    document.addEventListener("touchend", () => {
+      strip.classList.remove("dragging");
+      if (isHorizDrag) {
+        if (dragDX < -60) goTo(current + 1);
+        else if (dragDX > 60) goTo(current - 1);
+        else goTo(current); // snap back
+      }
+      dragDX = 0;
+      isHorizDrag = false;
+    });
+
+    // ── Offline detection ───────────────────────────────────────────────────
+    function updateOnlineStatus() {
+      offlineBdg.style.display = navigator.onLine ? "none" : "block";
+    }
+    window.addEventListener("online",  updateOnlineStatus);
+    window.addEventListener("offline", updateOnlineStatus);
+    updateOnlineStatus();
+
+    // ── Service Worker + background caching ────────────────────────────────
+    if ("serviceWorker" in navigator) {
+      navigator.serviceWorker.register("sw.js").then(reg => {
+        console.log("SW registered:", reg.scope);
+      });
+
+      // Listen for cache progress from SW
+      navigator.serviceWorker.addEventListener("message", e => {
+        if (e.data && e.data.type === "CACHE_PROGRESS") {
+          const pct = Math.round((e.data.upTo / TOTAL) * 100);
+          cacheBar.style.width = pct + "%";
+          if (pct >= 100) {
+            setTimeout(() => { cacheWrap.style.display = "none"; }, 800);
+          }
+        }
+      });
+
+      // Start background caching after 2 seconds
+      setTimeout(() => {
+        const base = location.href.replace("index.html", "").replace(/\/$/, "") + "/";
+        if (navigator.serviceWorker.controller) {
+          cacheWrap.style.display = "block";
+          navigator.serviceWorker.controller.postMessage({
+            type: "CACHE_PAGES", from: 1, to: TOTAL, base
+          });
+        } else {
+          // Wait for SW to activate
+          navigator.serviceWorker.ready.then(() => {
+            if (navigator.serviceWorker.controller) {
+              cacheWrap.style.display = "block";
+              navigator.serviceWorker.controller.postMessage({
+                type: "CACHE_PAGES", from: 1, to: TOTAL, base
+              });
+            }
+          });
+        }
+      }, 2000);
+    }
+
+    // ── PWA Install prompt ──────────────────────────────────────────────────
+    let deferredPrompt = null;
+    const installBanner = document.getElementById("install-banner");
+    const installBtn    = document.getElementById("install-btn");
+    const dismissBtn    = document.getElementById("dismiss-btn");
+
+    window.addEventListener("beforeinstallprompt", e => {
+      e.preventDefault();
+      deferredPrompt = e;
+      // Show banner after 5 seconds if not already installed
+      setTimeout(() => {
+        try {
+          const dismissed = localStorage.getItem("ynh-install-dismissed");
+          if (!dismissed) installBanner.classList.add("visible");
+        } catch(e) {}
+      }, 5000);
+    });
+
+    installBtn.addEventListener("click", async () => {
+      installBanner.classList.remove("visible");
+      if (deferredPrompt) {
+        deferredPrompt.prompt();
+        const { outcome } = await deferredPrompt.userChoice;
+        console.log("Install outcome:", outcome);
+        deferredPrompt = null;
+      }
+    });
+
+    dismissBtn.addEventListener("click", () => {
+      installBanner.classList.remove("visible");
+      try { localStorage.setItem("ynh-install-dismissed", "1"); } catch(e) {}
+    });
+
+    // Hide banner if already installed
+    window.addEventListener("appinstalled", () => {
+      installBanner.classList.remove("visible");
+    });
+
+    // ── Init ────────────────────────────────────────────────────────────────
+    let startPage = 0;
+    try {
+      const saved = localStorage.getItem("ynh-page");
+      if (saved !== null) startPage = Math.min(parseInt(saved) || 0, TOTAL - 1);
+    } catch(e) {}
+
+    // Initialise without animation
+    strip.classList.add("dragging");
+    goTo(startPage, false);
+    requestAnimationFrame(() => strip.classList.remove("dragging"));
+
+    // Fade hint
+    setTimeout(() => { if (!hintDismissed) hint.style.opacity = "0"; }, 3000);
+  </script>
+
+</body>
+</html>
